@@ -1,0 +1,29 @@
+{{- if .Values.ingress.enabled -}}
+{{- $fullName := include "kube-gchat.name" . -}}
+{{- $ingressPaths := .Values.ingress.paths -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $fullName }}
+  namespace: {{ .Values.application_env }}
+  labels:
+    app.kubernetes.io/name: {{ include "kube-gchat.fullname" . }}
+    helm.sh/chart: {{ include "kube-gchat.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  rules:
+    - host: {{ .Values.ingress.host }}
+      http:
+        paths:
+          {{- if .Values.ingress.extraPath }}
+          {{- toYaml .Values.ingress.extraPath | nindent 10 }}
+          {{- end }}
+          {{- if .Values.ingress.path }}
+          {{- toYaml .Values.ingress.path | nindent 10 }}
+          {{- end }}
+{{- end }}

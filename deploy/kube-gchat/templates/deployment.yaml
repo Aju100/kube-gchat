@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "kube-gchat.fullname" . }}
+  labels:
+    {{- include "kube-gchat.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "kube-gchat.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "kube-gchat.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "kube-gchat.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      volumes:
+      - name: {{ include "kube-gchat.fullname" . }}
+        secret:
+          secretName: {{ include "kube-gchat.fullname" . }}
+      - name: {{ include "kube-gchat.fullname" . }}-external-scripts
+        configMap:
+          name: {{ include "kube-gchat.fullname" . }}-external-scripts
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          volumeMounts:
+            - name: {{ include "kube-gchat.fullname" . }}
+              mountPath: /kube/hangout-hubot.json
+              subPath: hangout-hubot.json
+              readOnly: true
+            - name: {{ include "kube-gchat".fullname" . }}-external-scripts
+              mountPath: /kube/external-scripts.json
+              subPath: external-scripts.json
+              readOnly: true
+          envFrom:
+            - secretRef:
+                name: {{ include "kube-gchat.fullname" . }}-env
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          # livenessProbe:
+          #   httpGet:
+          #     path: /health
+          #     port: http
+          # readinessProbe:
+          #   httpGet:
+          #     path: /health
+          #     port: http
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
